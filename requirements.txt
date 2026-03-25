@@ -2,3 +2,4 @@ flask
 playwright
 gspread
 google-auth
+gunicorn
