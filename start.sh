@@ -1,3 +1,3 @@
 #!/bin/bash
-playwright install
+playwright install chromium
 python server.py
