@@ -1,0 +1,4 @@
+flask
+playwright
+gspread
+google-auth
