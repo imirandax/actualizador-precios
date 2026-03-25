@@ -1,4 +1,2 @@
-#!/bin/bash
-playwright install chromium
-playwright install-deps chromium
+python -m playwright install
 python server.py
