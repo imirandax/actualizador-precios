@@ -148,7 +148,7 @@ with sync_playwright() as p:
 
             if link_directo:
                 print("🔗 Usando link directo")
-                page.goto(link_directo, wait_until="domcontentloaded")
+                page.goto(link_directo, wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(2000)
                 selector_precio = ".product-info-main .price-wrapper .price"
                 precio_elemento = page.locator(selector_precio)
