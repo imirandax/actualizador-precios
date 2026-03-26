@@ -83,19 +83,21 @@ procesadas = 0
 
 with sync_playwright() as p:
     browser = p.chromium.launch(
-    headless=True,
-    args=[
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--single-process",
-        "--no-zygote"
-    ]
-)
+        headless=True,
+        args=[
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--single-process",
+            "--no-zygote"
+        ]
+    )
+
     context = browser.new_context(
-    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-)
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+    )
+
     page = context.new_page()
 
     hacer_login(page)
@@ -149,51 +151,71 @@ with sync_playwright() as p:
 
             if link_directo:
                 print("🔗 Usando link directo")
-                page.goto(link_directo, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_timeout(2000)
-                precio_final = None
 
-                bloques = page.locator(".product-info-main")
-
-                for intento in range(5):
+                for intento_link in range(2):
                     try:
-                        textos = bloques.first.inner_text()
-
-                        if "Precio unitario por bulto cerrado" in textos:
-                            lineas = textos.split("\n")
-
-                            for idx, linea in enumerate(lineas):
-                                if "Precio unitario por bulto cerrado" in linea:
-                                    precio_texto = lineas[idx + 1]
-                                    precio_final = normalizar_precio(precio_texto)
-                                    break
-
-                        if precio_final:
-                           break
-
+                        page.goto(link_directo, wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(2000)
+                        break
                     except:
-                        pass
+                        print("⚠️ Reintentando carga de producto...")
+                        page.wait_for_timeout(3000)
+                else:
+                    print("❌ No cargó el producto → fallback")
+                    link_directo = None
 
-                    page.wait_for_timeout(1500)
+                if link_directo:
+                    bloques = page.locator(".product-info-main")
+
+                    for intento in range(5):
+                        try:
+                            textos = bloques.first.inner_text()
+
+                            if "Precio unitario por bulto cerrado" in textos:
+                                lineas = textos.split("\n")
+
+                                for idx, linea in enumerate(lineas):
+                                    if "Precio unitario por bulto cerrado" in linea:
+                                        precio_texto = lineas[idx + 1]
+                                        precio_final = normalizar_precio(precio_texto)
+                                        break
+
+                            if precio_final:
+                                break
+
+                        except:
+                            pass
+
+                        page.wait_for_timeout(1500)
 
             if precio_final is None:
                 print("🔄 Usando fallback por búsqueda")
+
                 buscador = page.locator('input[placeholder="Explorá nuestros productos"]')
                 buscador.click(force=True, no_wait_after=True)
                 buscador.fill(sku)
+
                 page.wait_for_timeout(500)
                 page.keyboard.press("Enter")
                 page.wait_for_timeout(3000)
+
                 productos = page.locator(f"text=SKU {sku}")
+
                 if productos.count() > 0:
-                    contenedor = productos.first.locator("xpath=ancestor::div[contains(@class,'product')]")
+                    contenedor = productos.first.locator(
+                        "xpath=ancestor::div[contains(@class,'product')]"
+                    )
+
                     precio_locator = contenedor.locator(".price")
+
                     if precio_locator.count() == 0:
                         print("⚠️ Sin precio")
                         sheet.update_cell(i, 2, "Sin stock")
                         continue
+
                     precio_texto = precio_locator.first.inner_text()
                     precio_final = normalizar_precio(precio_texto)
+
                 else:
                     print("❌ No encontrado")
                     sheet.update_cell(i, 2, "Sin stock")
