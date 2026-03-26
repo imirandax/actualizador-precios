@@ -12,7 +12,7 @@ scope = [
 ]
 
 creds = Credentials.from_service_account_file(
-    "credenciales.json",  # ruta relativa, funciona en Render
+    "/etc/secrets/credenciales.json",
     scopes=scope
 )
 
@@ -45,22 +45,20 @@ def hacer_login(page):
     print("🔐 Iniciando login automático...")
     page.goto("https://maxiconsumo.com/customer/account/login/")
     page.wait_for_load_state("networkidle")
-
     page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
     page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
     page.click('button[type="submit"]')
-
     page.wait_for_load_state("networkidle")
     print("✅ Login exitoso")
 
-# 📊 PROGRESO
+# 📊 Progreso
 inicio = time.time()
 total_filas = len(data_formulas)
 procesadas = 0
 
 with sync_playwright() as p:
     browser = p.chromium.launch(
-        headless=True,  # sin pantalla, obligatorio en la nube
+        headless=True,
         args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
     )
     context = browser.new_context()
