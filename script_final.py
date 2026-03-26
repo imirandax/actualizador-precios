@@ -52,6 +52,12 @@ def hacer_login(page):
 
     page.wait_for_timeout(3000)
 
+    # cerrar popup si aparece
+    if page.locator("#custom-popup").is_visible():
+        print("⚠️ Cerrando popup...")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1000)
+
     page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
     page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
 
@@ -64,6 +70,7 @@ def hacer_login(page):
     page.wait_for_timeout(5000)
 
     print("✅ Login ejecutado en MERLO")
+    print("🌐 URL actual:", page.url)
 
 # 📊 Progreso
 inicio = time.time()
@@ -72,17 +79,21 @@ procesadas = 0
 
 with sync_playwright() as p:
     browser = p.chromium.launch(
-    headless=True,
-    args=[
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--single-process",
-        "--no-zygote"
-    ]
-)
-    context = browser.new_context()
+        headless=True,
+        args=[
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--single-process",
+            "--no-zygote"
+        ]
+    )
+
+    context = browser.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+    )
+
     page = context.new_page()
 
     hacer_login(page)
@@ -95,6 +106,7 @@ with sync_playwright() as p:
         tiempo_transcurrido = time.time() - inicio
         tiempo_por_fila = tiempo_transcurrido / procesadas
         tiempo_restante = tiempo_por_fila * (total_filas - procesadas)
+
         minutos = int(tiempo_restante // 60)
         segundos = int(tiempo_restante % 60)
 
@@ -134,35 +146,45 @@ with sync_playwright() as p:
         try:
             precio_final = None
 
+            # 🔗 LINK DIRECTO
             if link_directo:
                 print("🔗 Usando link directo")
-                page.goto(link_directo, wait_until="commit")
+
+                page.goto(link_directo, wait_until="domcontentloaded")
                 page.wait_for_timeout(2000)
+
                 selector_precio = ".product-info-main .price-wrapper .price"
                 precio_elemento = page.locator(selector_precio)
-                for intento in range(2):
-                    if precio_elemento.count() > 0:
-                        precio_texto = precio_elemento.first.inner_text()
-                        precio_final = normalizar_precio(precio_texto)
-                        break
-                    else:
-                        page.wait_for_timeout(1500)
 
+                if precio_elemento.count() > 0:
+                    precio_texto = precio_elemento.first.inner_text()
+                    precio_final = normalizar_precio(precio_texto)
+
+            # 🔄 FALLBACK
             if precio_final is None:
                 print("🔄 Usando fallback por búsqueda")
+
                 buscador = page.locator('input[placeholder="Explorá nuestros productos"]')
-                buscador.fill("")
+
+                buscador.click()
                 buscador.fill(sku)
-                buscador.press("Enter")
-                page.wait_for_timeout(2000)
+
+                page.wait_for_timeout(500)
+                page.keyboard.press("Enter")
+
+                page.wait_for_timeout(3000)
+
                 productos = page.locator(f"text=SKU {sku}")
+
                 if productos.count() > 0:
                     contenedor = productos.first.locator("xpath=ancestor::div[contains(@class,'product')]")
                     precio_locator = contenedor.locator(".price")
+
                     if precio_locator.count() == 0:
                         print("⚠️ Sin precio")
                         sheet.update_cell(i, 2, "Sin stock")
                         continue
+
                     precio_texto = precio_locator.first.inner_text()
                     precio_final = normalizar_precio(precio_texto)
                 else:
@@ -188,6 +210,10 @@ with sync_playwright() as p:
             print(f"❌ Error en fila {i}: {e}")
             sheet.update_cell(i, 2, "Sin stock")
 
-    print(f"\n{'='*50}")
+        # 🔥 CLAVE para evitar conflictos
+        page.wait_for_timeout(1500)
+
+    print("\n" + "="*50)
     print("✅ Proceso terminado")
+
     browser.close()
