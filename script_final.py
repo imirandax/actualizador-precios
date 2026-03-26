@@ -65,11 +65,12 @@ def hacer_login(page):
     page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
     page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
 
-    boton = page.locator('button.action.login.primary')
-    boton.wait_for(state="visible", timeout=10000)
+    page.wait_for_timeout(3000)
 
-    page.wait_for_timeout(1000)
-    boton.click(force=True)
+    page.locator('button.action.login.primary').click(
+        force=True,
+        no_wait_after=True
+    )
 
     page.wait_for_timeout(5000)
 
