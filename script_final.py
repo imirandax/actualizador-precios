@@ -59,7 +59,7 @@ def hacer_login(page):
     boton.wait_for(state="visible", timeout=10000)
 
     page.wait_for_timeout(1000)
-    boton.click()
+    boton.click(force=True)
 
     page.wait_for_timeout(5000)
 
