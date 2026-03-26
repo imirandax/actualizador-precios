@@ -17,7 +17,17 @@ creds = Credentials.from_service_account_file(
 )
 
 client = gspread.authorize(creds)
-sheet = client.open("PRECIOS ALMACEN").sheet1
+
+for intento in range(5):
+    try:
+        sheet = client.open("PRECIOS ALMACEN").sheet1
+        print("✅ Conectado a Google Sheets")
+        break
+    except Exception as e:
+        print(f"⚠️ Error conectando a Sheets (intento {intento+1}): {e}")
+        time.sleep(5)
+else:
+    raise Exception("❌ No se pudo conectar a Google Sheets después de varios intentos")
 
 # 📄 Leer datos
 data_formulas = sheet.get_all_values(value_render_option='FORMULA')
@@ -138,7 +148,6 @@ with sync_playwright() as p:
 
             if link_directo:
                 print("🔗 Usando link directo")
-                page.wait_for_load_state("domcontentloaded")
                 page.goto(link_directo, wait_until="domcontentloaded")
                 page.wait_for_timeout(2000)
                 selector_precio = ".product-info-main .price-wrapper .price"
@@ -154,7 +163,7 @@ with sync_playwright() as p:
             if precio_final is None:
                 print("🔄 Usando fallback por búsqueda")
                 buscador = page.locator('input[placeholder="Explorá nuestros productos"]')
-                buscador.fill("")
+                buscador.click()
                 buscador.fill(sku)
                 page.wait_for_timeout(500)
                 page.keyboard.press("Enter")
