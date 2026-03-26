@@ -61,16 +61,16 @@ def hacer_login(page):
     page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
     page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
 
-    boton = page.locator('button.action.login.primary')
-    boton.wait_for(state="visible", timeout=10000)
-
+    # 👉 SIN wait_for
     page.wait_for_timeout(1000)
-    boton.click(force=True)
 
+    # 👉 click directo
+    page.locator('button.action.login.primary').click(force=True)
+
+    # 👉 NO esperar navegación estricta
     page.wait_for_timeout(5000)
 
     print("✅ Login ejecutado en MERLO")
-    print("🌐 URL actual:", page.url)
 
 # 📊 Progreso
 inicio = time.time()
