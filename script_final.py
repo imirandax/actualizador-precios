@@ -178,7 +178,7 @@ with sync_playwright() as p:
             if precio_final is None:
                 print("🔄 Usando fallback por búsqueda")
                 buscador = page.locator('input[placeholder="Explorá nuestros productos"]')
-                buscador.click()
+                buscador.click(force=True, no_wait_after=True)
                 buscador.fill(sku)
                 page.wait_for_timeout(500)
                 page.keyboard.press("Enter")
