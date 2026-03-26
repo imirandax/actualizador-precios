@@ -58,9 +58,16 @@ procesadas = 0
 
 with sync_playwright() as p:
     browser = p.chromium.launch(
-        headless=True,
-        args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-    )
+    headless=True,
+    args=[
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--single-process",
+        "--no-zygote"
+    ]
+)
     context = browser.new_context()
     page = context.new_page()
 
