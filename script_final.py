@@ -161,9 +161,9 @@ with sync_playwright() as p:
                         if "Precio unitario por bulto cerrado" in textos:
                             lineas = textos.split("\n")
 
-                            for i, linea in enumerate(lineas):
+                            for idx, linea in enumerate(lineas):
                                 if "Precio unitario por bulto cerrado" in linea:
-                                    precio_texto = lineas[i + 1]
+                                    precio_texto = lineas[idx + 1]
                                     precio_final = normalizar_precio(precio_texto)
                                     break
 
