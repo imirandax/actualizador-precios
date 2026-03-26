@@ -150,15 +150,25 @@ with sync_playwright() as p:
                 print("🔗 Usando link directo")
                 page.goto(link_directo, wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(2000)
-                selector_precio = ".product-info-main .price-wrapper .price"
-                precio_elemento = page.locator(selector_precio)
-                for intento in range(3):
-                    try:
-                        precio_texto = precio_elemento.first.inner_text()
+                precio_final = None
 
-                        if precio_texto.strip():
-                            precio_final = normalizar_precio(precio_texto)
-                            break
+                bloques = page.locator(".product-info-main")
+
+                for intento in range(5):
+                    try:
+                        textos = bloques.first.inner_text()
+
+                        if "Precio unitario por bulto cerrado" in textos:
+                            lineas = textos.split("\n")
+
+                            for i, linea in enumerate(lineas):
+                                if "Precio unitario por bulto cerrado" in linea:
+                                    precio_texto = lineas[i + 1]
+                                    precio_final = normalizar_precio(precio_texto)
+                                    break
+
+                        if precio_final:
+                           break
 
                     except:
                         pass
