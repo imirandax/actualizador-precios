@@ -152,13 +152,18 @@ with sync_playwright() as p:
                 page.wait_for_timeout(2000)
                 selector_precio = ".product-info-main .price-wrapper .price"
                 precio_elemento = page.locator(selector_precio)
-                for intento in range(2):
-                    if precio_elemento.count() > 0:
+                for intento in range(3):
+                    try:
                         precio_texto = precio_elemento.first.inner_text()
-                        precio_final = normalizar_precio(precio_texto)
-                        break
-                    else:
-                        page.wait_for_timeout(1500)
+
+                        if precio_texto.strip():
+                            precio_final = normalizar_precio(precio_texto)
+                            break
+
+                    except:
+                        pass
+
+                    page.wait_for_timeout(1500)
 
             if precio_final is None:
                 print("🔄 Usando fallback por búsqueda")
