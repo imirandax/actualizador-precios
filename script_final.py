@@ -43,7 +43,7 @@ def normalizar_precio(texto):
 # 🔐 Login automático
 def hacer_login(page):
     print("🔐 Iniciando login automático...")
-    page.goto("https://maxiconsumo.com/customer/account/login/")
+    page.goto("https://maxiconsumo.com/sucursal_merlo/customer/account/login/")
     page.wait_for_load_state("networkidle")
     page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
     page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
