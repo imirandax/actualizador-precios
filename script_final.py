@@ -43,13 +43,27 @@ def normalizar_precio(texto):
 # 🔐 Login automático
 def hacer_login(page):
     print("🔐 Iniciando login automático...")
-    page.goto("https://maxiconsumo.com/sucursal_merlo/customer/account/login/")
-    page.wait_for_load_state("networkidle")
+
+    page.goto(
+        "https://maxiconsumo.com/sucursal_merlo/customer/account/login/",
+        wait_until="domcontentloaded",
+        timeout=60000
+    )
+
+    page.wait_for_timeout(3000)
+
     page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
     page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
-    page.click('button[type="submit"]')
-    page.wait_for_load_state("networkidle")
-    print("✅ Login exitoso")
+
+    boton = page.locator('button.action.login.primary')
+    boton.wait_for(state="visible", timeout=10000)
+
+    page.wait_for_timeout(1000)
+    boton.click()
+
+    page.wait_for_timeout(5000)
+
+    print("✅ Login ejecutado en MERLO")
 
 # 📊 Progreso
 inicio = time.time()
