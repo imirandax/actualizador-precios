@@ -4,12 +4,26 @@ import os
 
 app = Flask(__name__)
 
-@app.route('/ejecutar')
-def ejecutar():
-    print("🔥 Ejecutando en servidor nube")
-    subprocess.Popen(["python", "script_final.py"])
-    return "OK", 200
+proceso_activo = None
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+@app.route("/")
+def home():
+    return "Servidor activo"
+
+@app.route("/ejecutar")
+def ejecutar():
+    global proceso_activo
+
+    print("🔥 Ejecutando en servidor nube")
+
+    # 🔒 evitar doble ejecución
+    if proceso_activo and proceso_activo.poll() is None:
+        return "⚠️ Ya hay un proceso en ejecución", 200
+
+    proceso_activo = subprocess.Popen(
+        ["python", "script_final.py"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    return "OK", 200
