@@ -209,7 +209,10 @@ with sync_playwright() as p:
 
                     page.wait_for_selector("body", timeout=10000)
 
-                    productos = page.locator(f"text=SKU {sku}")
+                    productos = page.locator(f"text={sku}")
+
+                    print(f"DEBUG: buscando SKU {sku}")
+                    print(f"DEBUG count: {productos.count()}")
 
                     if productos.count() > 0:
                         contenedor = productos.first.locator(
