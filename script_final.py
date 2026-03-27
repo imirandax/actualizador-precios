@@ -188,34 +188,36 @@ with sync_playwright() as p:
 
                         page.wait_for_timeout(1500)
 
+            # ======================
+            # FALLBACK PRO
+            # ======================
             if precio_final is None:
                 print("🔄 Usando fallback por búsqueda")
 
-                buscador = page.locator('input[placeholder="Explorá nuestros productos"]')
-                buscador.click(force=True, no_wait_after=True)
-                buscador.fill(sku)
+                page.goto(
+                    f"https://maxiconsumo.com/sucursal_merlo/catalogsearch/result/?q={sku}",
+                    wait_until="domcontentloaded",
+                    timeout=90000
+                )
 
-                page.wait_for_timeout(500)
-                page.keyboard.press("Enter")
                 page.wait_for_timeout(3000)
 
-                productos = page.locator(f"text=SKU {sku}")
+                productos = page.locator(f"text={sku}")
 
                 if productos.count() > 0:
                     contenedor = productos.first.locator(
-                        "xpath=ancestor::div[contains(@class,'product')]"
+                        "xpath=ancestor::li[contains(@class,'product')] | xpath=ancestor::div[contains(@class,'product')]"
                     )
 
                     precio_locator = contenedor.locator(".price")
 
-                    if precio_locator.count() == 0:
+                    if precio_locator.count() > 0:
+                        precio_texto = precio_locator.first.inner_text()
+                        precio_final = normalizar_precio(precio_texto)
+                    else:
                         print("⚠️ Sin precio")
                         sheet.update_cell(i, 2, "Sin stock")
                         continue
-
-                    precio_texto = precio_locator.first.inner_text()
-                    precio_final = normalizar_precio(precio_texto)
-
                 else:
                     print("❌ No encontrado")
                     sheet.update_cell(i, 2, "Sin stock")
@@ -239,7 +241,5 @@ with sync_playwright() as p:
             print(f"❌ Error en fila {i}: {e}")
             sheet.update_cell(i, 2, "Sin stock")
 
-    print(f"\n{'='*50}")
     print("✅ Proceso terminado")
-
-    browser.close()
+    browser.close()   
