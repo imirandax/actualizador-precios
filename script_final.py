@@ -206,7 +206,7 @@ with sync_playwright() as p:
 
                 if productos.count() > 0:
                     contenedor = productos.first.locator(
-                        "xpath=ancestor::li[contains(@class,'product')] | xpath=ancestor::div[contains(@class,'product')]"
+                        "xpath=ancestor::*[contains(@class,'product')]"
                     )
 
                     precio_locator = contenedor.locator(".price")
