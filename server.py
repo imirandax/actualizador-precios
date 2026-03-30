@@ -1,6 +1,5 @@
 from flask import Flask
 import subprocess
-import os
 
 app = Flask(__name__)
 
@@ -12,18 +11,15 @@ def home():
 
 @app.route("/ejecutar")
 def ejecutar():
-    global proceso_activo
-
     print("🔥 Ejecutando en servidor nube")
 
-    # 🔒 evitar doble ejecución
-    if proceso_activo and proceso_activo.poll() is None:
-        return "⚠️ Ya hay un proceso en ejecución", 200
-
-    proceso_activo = subprocess.Popen(
+    resultado = subprocess.run(
         ["python", "script_final.py"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        capture_output=True,
+        text=True
     )
+
+    print("STDOUT:\n", resultado.stdout)
+    print("STDERR:\n", resultado.stderr)
 
     return "OK", 200
