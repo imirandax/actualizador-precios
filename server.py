@@ -11,15 +11,18 @@ def home():
 
 @app.route("/ejecutar")
 def ejecutar():
+    global proceso_activo
+
     print("🔥 Ejecutando en servidor nube")
 
-    resultado = subprocess.run(
+    if proceso_activo and proceso_activo.poll() is None:
+        return "⚠️ Ya hay un proceso en ejecución", 200
+
+    proceso_activo = subprocess.Popen(
         ["python", "script_final.py"],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True
     )
 
-    print("STDOUT:\n", resultado.stdout)
-    print("STDERR:\n", resultado.stderr)
-
-    return "OK", 200
+    return "Proceso iniciado", 200
