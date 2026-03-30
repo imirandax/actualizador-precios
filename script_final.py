@@ -1,8 +1,8 @@
-from playwright.sync_api import sync_playwright
+import requests
+from bs4 import BeautifulSoup
 import re
 import gspread
 import time
-import os
 from google.oauth2.service_account import Credentials
 
 # 🔐 Google Sheets
@@ -27,7 +27,7 @@ for intento in range(5):
         print(f"⚠️ Error conectando a Sheets (intento {intento+1}): {e}")
         time.sleep(5)
 else:
-    raise Exception("❌ No se pudo conectar a Google Sheets después de varios intentos")
+    raise Exception("❌ No se pudo conectar a Google Sheets")
 
 # 📄 Leer datos
 data_formulas = sheet.get_all_values(value_render_option='FORMULA')
@@ -50,196 +50,100 @@ def normalizar_precio(texto):
     texto = texto.replace("$", "").replace(".", "").replace(",", ".").strip()
     return round(float(texto))
 
-# 🔐 Login automático
-def hacer_login(page):
-    print("🔐 Iniciando login automático...")
+# 🔎 Obtener precio desde HTML
+def obtener_precio(url):
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
 
-    page.goto(
-        "https://maxiconsumo.com/sucursal_merlo/customer/account/login/",
-        wait_until="domcontentloaded",
-        timeout=60000
-    )
+        response = requests.get(url, headers=headers, timeout=15)
 
-    page.wait_for_timeout(3000)
+        if response.status_code != 200:
+            print("⚠️ Error HTTP:", response.status_code)
+            return None
 
-    page.fill('input[name="login[username]"]', os.environ["MC_EMAIL"])
-    page.fill('input[name="login[password]"]', os.environ["MC_PASSWORD"])
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    page.wait_for_timeout(3000)
+        # 🔥 buscar precio final
+        precio_span = soup.find("span", {"data-price-type2": "finalPrice"})
 
-    page.locator('button.action.login.primary').click(
-        force=True,
-        no_wait_after=True
-    )
+        if precio_span:
+            precio_texto = precio_span.get("data-price-amount")
+            return normalizar_precio(precio_texto)
 
-    page.wait_for_timeout(5000)
+        print("⚠️ No encontró precio en HTML")
+        return None
 
-    print("✅ Login ejecutado en MERLO")
+    except Exception as e:
+        print("❌ Error obteniendo precio:", e)
+        return None
 
 # 📊 Progreso
 inicio = time.time()
 total_filas = len(data_formulas)
 procesadas = 0
 
-with sync_playwright() as p:
-    browser = p.chromium.launch(
-        headless=True,
-        args=[
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--single-process",
-            "--no-zygote"
-        ]
-    )
+for i, fila in enumerate(data_formulas, start=1):
+    procesadas += 1
 
-    context = browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-    )
+    porcentaje = (procesadas / total_filas) * 100
+    print(f"\n🚀 {procesadas}/{total_filas} ({porcentaje:.1f}%)")
 
-    page = context.new_page()
+    if len(fila) < 4:
+        continue
 
-    hacer_login(page)
+    marca = str(fila[0]).strip()
+    sku_raw = str(fila[3]).strip()
 
-    categoria_actual = ""
+    try:
+        costo_actual = str(data_valores[i-1][1])
+    except:
+        costo_actual = ""
 
-    for i, fila in enumerate(data_formulas, start=1):
-        procesadas += 1
-        porcentaje = (procesadas / total_filas) * 100
-        tiempo_transcurrido = time.time() - inicio
-        tiempo_por_fila = tiempo_transcurrido / procesadas
-        tiempo_restante = tiempo_por_fila * (total_filas - procesadas)
-        minutos = int(tiempo_restante // 60)
-        segundos = int(tiempo_restante % 60)
+    # 📦 categorías
+    if marca.isupper() and not sku_raw:
+        print(f"📦 {marca}")
+        continue
 
-        print(f"\n{'='*50}")
-        print(f"🚀 {procesadas}/{total_filas} | {porcentaje:.1f}% | ETA: {minutos}m {segundos}s")
+    if not marca or not sku_raw:
+        continue
+    if marca.upper() == "MARCA":
+        continue
+    if sku_raw.upper() == "SKU":
+        continue
 
-        if len(fila) < 4:
-            continue
+    link_directo, sku = extraer_link_y_sku(sku_raw)
 
-        marca = str(fila[0]).strip()
-        sku_raw = str(fila[3]).strip()
+    if not link_directo:
+        print("⚠️ Sin link → salto")
+        continue
 
-        try:
-            costo_actual = str(data_valores[i-1][1])
-        except:
-            costo_actual = ""
+    print(f"🔎 Fila {i} | {marca} | SKU {sku}")
 
-        if marca.isupper() and not sku_raw:
-            categoria_actual = marca
-            print(f"📦 {categoria_actual}")
-            continue
+    precio_final = obtener_precio(link_directo)
 
-        if not marca or not sku_raw:
-            continue
-        if marca.upper() == "MARCA":
-            continue
-        if sku_raw.upper() == "SKU":
-            continue
+    # 🚨 lógica sin stock
+    if precio_final is None:
+        print("❌ Sin stock / no encontrado")
+        sheet.update_cell(i, 2, "Sin stock")
+        continue
 
-        link_directo, sku = extraer_link_y_sku(sku_raw)
+    print(f"💰 Precio: {precio_final}")
 
-        if not sku:
-            continue
+    try:
+        costo_actual_num = round(float(costo_actual.replace(".", "").replace(",", ".")))
+    except:
+        costo_actual_num = None
 
-        print(f"🔎 Fila {i} | {marca} | SKU {sku}")
+    if costo_actual_num == precio_final:
+        print("⏭️ Sin cambios")
+        continue
 
-        try:
-            precio_final = None
+    try:
+        sheet.update_cell(i, 2, precio_final)
+        print("✅ Actualizado")
+    except Exception as e:
+        print("❌ Error actualizando:", e)
 
-            if link_directo:
-                print("🔗 Usando link directo")
-
-                for intento_link in range(2):
-                    try:
-                        page.goto(link_directo, wait_until="domcontentloaded", timeout=60000)
-                        page.wait_for_timeout(2000)
-                        break
-                    except:
-                        print("⚠️ Reintentando carga de producto...")
-                        page.wait_for_timeout(3000)
-                else:
-                    print("❌ No cargó el producto → fallback")
-                    link_directo = None
-
-                if link_directo:
-                    bloques = page.locator(".product-info-main")
-
-                    for intento in range(5):
-                        try:
-                            textos = bloques.first.inner_text()
-
-                            if "Precio unitario por bulto cerrado" in textos:
-                                lineas = textos.split("\n")
-
-                                for idx, linea in enumerate(lineas):
-                                    if "Precio unitario por bulto cerrado" in linea:
-                                        precio_texto = lineas[idx + 1]
-                                        precio_final = normalizar_precio(precio_texto)
-                                        break
-
-                            if precio_final:
-                                break
-
-                        except:
-                            pass
-
-                        page.wait_for_timeout(1500)
-
-            # ======================
-            # FALLBACK PRO
-            # ======================
-            if precio_final is None:
-                print("🔄 Usando fallback por búsqueda")
-
-                page.goto(
-                    f"https://maxiconsumo.com/sucursal_merlo/catalogsearch/result/?q={sku}",
-                    wait_until="domcontentloaded",
-                    timeout=90000
-                )
-
-                page.wait_for_timeout(3000)
-
-                productos = page.locator(f"text={sku}")
-
-                if productos.count() > 0:
-                    contenedor = productos.first.locator(
-                        "xpath=ancestor::*[contains(@class,'product')]"
-                    )
-
-                    precio_locator = contenedor.locator(".price")
-
-                    if precio_locator.count() > 0:
-                        precio_texto = precio_locator.first.inner_text()
-                        precio_final = normalizar_precio(precio_texto)
-                    else:
-                        print("⚠️ Sin precio")
-                        sheet.update_cell(i, 2, "Sin stock")
-                        continue
-                else:
-                    print("❌ No encontrado")
-                    sheet.update_cell(i, 2, "Sin stock")
-                    continue
-
-            print(f"💰 Precio final: {precio_final}")
-
-            try:
-                costo_actual_num = round(float(costo_actual.replace(".", "").replace(",", ".")))
-            except:
-                costo_actual_num = None
-
-            if costo_actual_num == precio_final:
-                print("⏭️ Sin cambios")
-                continue
-
-            sheet.update_cell(i, 2, precio_final)
-            print("✅ Actualizado")
-
-        except Exception as e:
-            print(f"❌ Error en fila {i}: {e}")
-            sheet.update_cell(i, 2, "Sin stock")
-
-    print("✅ Proceso terminado")
-    browser.close()   
+print("✅ Proceso terminado")
