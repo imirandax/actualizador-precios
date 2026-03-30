@@ -1,5 +1,6 @@
 flask
-playwright
+requests
+beautifulsoup4
 gspread
 google-auth
 gunicorn
